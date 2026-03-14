@@ -180,3 +180,117 @@ version on the left. Notice [key things to observe].
 [N+3]. After merging all the changes, double-check that there are no remaining diffs
 (red blocks on the side). Then close the diff view by clicking the "X" in the tab.
 ```
+
+**IMPORTANT ordering rule:** The correct flow is always: view skeleton → diff/merge → run.
+Never ask students to run a skeleton file before its merge step. If showing the skeleton before
+merging, explicitly note: "Note: this file is incomplete — we'll merge in the working code in
+the next step."
+
+## Timing Estimates
+
+Include timing information to help instructors pace the class and help students know if something
+is stuck vs. just slow.
+
+### Per-lab timing
+Add an estimated completion time to each lab's header or purpose statement:
+```markdown
+**Lab [N] - [Title]** (~15-20 minutes)
+
+**Purpose: In this lab, we'll [description].**
+```
+
+### Per-step timing for slow operations
+When a step involves a known slow operation, include an approximate wait time:
+
+```markdown
+[N]. Run the program. **This may take 1-2 minutes** as the local model generates its response.
+
+\```
+python rag_query.py
+\```
+```
+
+### Common timing expectations
+Use these as guidelines when estimating lab step durations:
+- **Codespace setup**: 3-5 minutes (container build + post-create scripts)
+- **Ollama model warmup**: 1-3 minutes (post-attach model pull/warm-up)
+- **Local LLM queries**: 30 seconds to 2+ minutes per query (depends on model size and machine type)
+- **`code -d` merge operations**: 2-5 minutes (student reading + merging)
+- **Server startup**: 2-5 seconds (Flask, Uvicorn, etc.)
+- **pip install steps**: 1-3 minutes depending on packages
+- **Model downloads**: 2-10 minutes depending on model size
+
+## Troubleshooting Guidance
+
+Labs should not assume the happy path. Include troubleshooting notes for steps with common
+failure modes. This prevents students from getting stuck and raising their hand for easily
+solved issues.
+
+### Inline troubleshooting pattern
+After a step with a common failure mode, add a brief note:
+
+```markdown
+[N]. Run the application:
+
+\```
+python app.py
+\```
+
+> **If you see** `ModuleNotFoundError: No module named 'langchain'`: Your virtual environment
+> may not be activated. Run `source py_env/bin/activate` and try again.
+
+<br><br>
+```
+
+### Common issues to document
+
+Include troubleshooting notes for these common problems when relevant:
+
+- **Virtual environment not activated**: If Python commands fail with "module not found", add:
+  "Run `source .venv/bin/activate` or `source py_env/bin/activate` — the prompt should show
+  the venv name like `(py_env)`."
+- **Ollama not running**: If model-related commands fail, add: "Check if Ollama is running with
+  `ollama list`. You may need to run `ollama serve &` first."
+- **Port already in use**: If a server won't start, add: "If you see 'Address already in use',
+  run `kill $(lsof -t -i:PORT)` to free the port, then try again."
+- **Interactive program won't exit**: Add: "Press `Ctrl+C` to exit the interactive prompt."
+- **Slow LLM responses**: Add: "This may take 1-2 minutes on a 4-core Codespace — be patient."
+
+### Troubleshooting appendix
+For courses with complex environments, consider adding a troubleshooting appendix at the end of
+labs.md (before the copyright footer) covering environment-wide issues.
+
+## Benign Warnings Documentation
+
+Students frequently see terminal warnings that look alarming but are harmless. Proactively
+document these to prevent confusion and unnecessary hand-raising.
+
+### When to add warning notes
+After any step that produces known harmless warnings, add a note:
+
+```markdown
+[N]. Install the required packages:
+
+\```
+pip install -r requirements.txt
+\```
+
+> You may see warnings about pip version or package deprecation — these are harmless and won't
+> affect the labs.
+
+<br><br>
+```
+
+### Common benign warnings by course type
+
+**AI/ML courses:**
+- `[W:onnxruntime:Default, device_discovery.cc:131 GetPciBusId] Skipping pci_bus_id...` — harmless hardware detection
+- Python deprecation warnings from third-party packages — don't affect functionality
+- `A new version of pip is available` — informational, not an error
+- TensorFlow/PyTorch CUDA warnings when running on CPU — expected in Codespace environments
+
+**General Codespace courses:**
+- Git "detached HEAD" notices — expected when Codespaces checks out a specific commit
+- `npm WARN` messages during `npm install` — usually about optional dependencies
+- VS Code extension installation warnings — don't affect lab functionality
+
