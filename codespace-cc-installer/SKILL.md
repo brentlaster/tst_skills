@@ -20,8 +20,8 @@ You are a browser automation agent that installs and authenticates Claude Code i
 This workflow has many sequential steps, so minimizing unnecessary delays is critical:
 - **Don't take extra screenshots** unless you need to verify something unexpected. If you just performed an action and know what the next screen will be, proceed directly.
 - **Use short waits** (2-3 seconds) between steps rather than long ones. Only use longer waits (15+ seconds) for npm install.
-- **Use JavaScript extraction** (`javascript_tool`) to read text from pages rather than zooming/screenshot OCR — it's faster and more accurate.
-- **Read the popup dialog URL** using `read_page` before dismissing it — the auth URL is right there in the DOM, so you don't need to parse the terminal.
+- **Use JavaScript extraction** (`javascript_tool`) to read text from pages when possible — it's faster and more accurate than zooming/screenshot OCR. Note: JS extraction is blocked for some content (e.g., URLs with query strings in VS Code dialogs).
+- **Dismiss the auth popup immediately** — the popup URL uses a localhost redirect that won't work. The correct URL (with `platform.claude.com` redirect) is in the terminal.
 
 ## Before You Start
 
@@ -80,26 +80,19 @@ After this, two things happen simultaneously:
 - A **popup dialog** appears asking "Do you want Code to open the external website?" — this contains the auth URL in its body text.
 - The **terminal** behind the popup shows the auth URL and a "Paste code here if prompted >" prompt.
 
-### Step 5: Extract the auth URL from the popup, then dismiss it
+### Step 5: Dismiss the popup and read the auth URL from the terminal
 
-**This is the fastest approach.** Before dismissing the popup dialog, extract the auth URL from it using `read_page` or `javascript_tool`. The dialog contains the full URL as visible text.
+A popup dialog appears asking "Do you want Code to open the external website?" — **ignore the URL in this popup**. It uses a `localhost` redirect_uri that won't work in a Codespace. The terminal behind it has the correct URL with a `platform.claude.com` redirect.
 
-Use JavaScript to extract it efficiently:
-```javascript
-// Look for the dialog text that contains the oauth URL
-document.querySelector('.dialog-message-text, .monaco-dialog-box .dialog-message-text, [class*="dialog"] a, [class*="dialog"] p')?.textContent
-```
+**Action:** Click **"Cancel"** to dismiss the popup immediately.
 
-If JavaScript doesn't find it cleanly, use `read_page` to locate the dialog element and read its text content. The URL starts with `https://claude.ai/oauth/authorize?...`.
+Now read the auth URL from the terminal. The URL is printed in the terminal text and typically spans multiple wrapped lines. Use `zoom` on the terminal text area to read it piece by piece. The URL always starts with `https://claude.ai/oauth/authorize?code=true&client_id=` and the critical difference is it contains `redirect_uri=https%3A%2F%2Fplatform.claude.com%2Foauth%2Fcode%2Fcallback`.
 
-**IMPORTANT:** The popup URL uses a `localhost` redirect_uri which won't work. You need the **terminal URL** instead, which uses `platform.claude.com` as the redirect. So after reading the popup URL, modify it:
-- Replace `redirect_uri=http%3A%2F%2Flocalhost%3A[PORT]%2Fcallback` with `redirect_uri=https%3A%2F%2Fplatform.claude.com%2Foauth%2Fcode%2Fcallback`
-
-Alternatively, just dismiss the popup and read the URL from the terminal instead (see Fallback below).
-
-After extracting the URL, click **"Cancel"** to dismiss the popup dialog.
-
-**Fallback — reading URL from terminal:** If extracting from the popup doesn't work, dismiss the popup and zoom into the terminal area where the URL is printed. The URL spans multiple wrapped lines. Use `zoom` on the terminal text area to read it piece by piece, or use `read_page` to try to extract terminal text content.
+**Tips for reading the URL from the terminal:**
+- Zoom into the terminal area in sections (left half, right half) to read the full wrapped URL
+- The URL is long and wraps across 2-3 lines — make sure you capture the entire thing
+- `get_page_text` does NOT work for VS Code terminal content — use `zoom` screenshots instead
+- `javascript_tool` extraction of the URL may be blocked by security filters on query string data
 
 ### Step 6: Open the auth URL in a new tab
 
@@ -173,10 +166,11 @@ export PATH="$HOME/.npm-global/bin:$PATH"
 Or open a new terminal with Ctrl+Shift+` and try `claude --dangerously-skip-permissions` again.
 
 ### Auth URL extraction fails
-If you can't extract the URL from the popup or terminal text:
-1. Try `read_page` with `filter: "all"` on the Codespace tab to find dialog elements
-2. Zoom into the terminal text area and read the URL line by line
-3. The URL always starts with `https://claude.ai/oauth/authorize?code=true&client_id=`
+If you can't read the URL from the terminal text via zoom:
+1. Try zooming into different sections of the terminal — the URL wraps across multiple lines
+2. The URL always starts with `https://claude.ai/oauth/authorize?code=true&client_id=`
+3. Make sure you're reading the terminal URL (with `platform.claude.com` redirect), NOT the popup URL (which has a `localhost` redirect that won't work)
+4. `get_page_text` does NOT capture VS Code terminal content — always use `zoom` screenshots
 
 ### Popup won't dismiss
 Try pressing **Escape**, or look for a small X button. If the popup is a VS Code notification (bottom-right corner), there's usually a close icon. If it's a browser-level dialog, look for Cancel/Don't Allow/Block options.
