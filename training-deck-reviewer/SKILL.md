@@ -40,14 +40,34 @@ updated — not just analyzed.
 2. **Get the deck.** The user will provide a .pptx file. Copy it to your working directory so you
    have a local copy to work with.
 
-3. **Pre-flight inspection:**
+3. **Ask about time allocation.** Before starting the review, ask the user:
+   - "How much total time is allocated for this presentation (including labs)?"
+   - If the user mentions labs or the deck contains lab placeholder slides, confirm: "Does that
+     include lab time, or is lab time separate?"
+   Record the answer. This feeds into the Timing Estimate in Phase 6. If the user doesn't know
+   or says "no constraint," skip timing analysis but still produce the estimate as informational.
+
+4. **Pre-flight inspection:**
    - Get total slide count
    - Note the deck version/date if present on the title slide
    - Identify the deck's visual theme — fonts, colors, layout patterns, decorative elements
    - Extract all text with `python -m markitdown <deck>.pptx` for a content overview
    - Generate thumbnails with `python scripts/thumbnail.py <deck>.pptx` for a visual overview
+   - **Identify the "end of active deck" boundary** — find the slide with "That's All",
+     "Thanks", "Thank You", "Questions?", or similar closing content. Record its slide number.
 
-4. **Proceed through all 9 phases in order.** Each phase builds on the previous ones.
+5. **Scope boundary — post-closing slides:**
+
+   Any slides that appear AFTER the closing/thanks slide are **out of scope for review**. These
+   are typically extras, reserves, or leftovers from previous reviews. During Phase 1 inventory,
+   note them briefly (slide number, title) but tag them as `post-closing` and **skip them in all
+   subsequent phases** — no accuracy checks, no visual review, no animation analysis, no gap
+   placement, no flow analysis. They should not appear in issue tables, gap recommendations, or
+   action items. If a post-closing slide is relevant to a gap identified in Phase 5, mention it
+   as "an existing slide after the closing slide may partially address this" but do not evaluate
+   it further.
+
+6. **Proceed through all 9 phases in order.** Each phase builds on the previous ones.
    Phases 1-6 are analysis. Phase 7 writes the report. **Phase 8 applies changes to the deck.**
    **Phase 9 generates the anticipated Q&A document.**
    You are not finished until Phase 9 is complete and all three deliverable files have been saved.
@@ -80,6 +100,11 @@ This year scan feeds directly into the Year/Date Update step (see below).
 
 Group slides into logical sections based on section dividers and topic flow. The output of this
 phase is a complete inventory table and a section map showing how the deck is organized.
+
+**Post-closing slides:** When you reach the closing/thanks slide identified in pre-flight, mark
+all subsequent slides as `post-closing` in the inventory. List them with slide number and title
+but do NOT analyze them further in any subsequent phase. Add a note in the inventory:
+"Slides [N+1]-[end] are post-closing and excluded from review scope."
 
 This inventory becomes your reference for every subsequent phase — you'll use it to know which
 slides need visual inspection, which have animations, where the lab slides are, etc.
@@ -289,6 +314,87 @@ facts are correct.
 For each issue, suggest a specific fix — move slide X after slide Y, add a bridge slide
 between sections A and B, split this dense slide into two, etc.
 
+### Slide Reduction Candidates
+
+As a separate sub-analysis, identify slides that could be removed or consolidated if the deck
+needs to be shortened (e.g., for a tighter time slot or to make room for new content). For each
+candidate, explain WHY it's a removal candidate and what, if anything, would be lost.
+
+**What to look for:**
+
+- Slides that repeat information already well-covered on an earlier slide
+- Slides with very thin content that could be merged into an adjacent slide
+- Slides covering tangential topics that don't directly support the deck's core learning objectives
+- Slides where the content is outdated enough that removal is better than rewriting
+- Slides that provide background/context most attendees likely already know
+
+**What to IGNORE (never flag as reduction candidates):**
+
+- **Lab intro slides** — slides that introduce a hands-on exercise (typically with a different
+  background theme, limited text, and a lab title). These are structural anchors for the course.
+- **Section header/divider slides** — slides that mark the beginning of a new topic section.
+  These have distinct backgrounds (not the standard white curved-line theme) and serve as
+  navigation landmarks during delivery.
+- **Title and closing slides** — the deck's opening and "That's All"/"Thanks" slides
+
+**How to identify lab intros and section headers:** These slides typically have visually distinct
+backgrounds (colored/gradient fills, images, or patterns) rather than the standard content slide
+background (white with subtle decorative curved lines). They usually contain minimal text — just
+a title or section name. When in doubt, compare the slide's background to the majority content
+slides; if it's visually different, skip it.
+
+For each candidate, provide:
+- Slide number and title
+- Why it's a candidate (redundant, thin, tangential, etc.)
+- Impact if removed (low/medium/high) — what content would be lost
+- Suggested alternative if applicable (e.g., "merge key points into slide N")
+
+### Timing Estimate
+
+Using the Phase 1 inventory and the time allocation provided by the user, estimate how long
+the deck will take to deliver and whether it fits within the allotted time.
+
+**How to estimate:**
+
+1. **Count content slides** (in-scope only — exclude post-closing slides, section headers,
+   and lab intro slides from the per-slide time calculation).
+2. **Estimate per-slide time** based on slide density:
+   - **Light slides** (title only, single image, 1-3 bullets): ~1 minute
+   - **Standard slides** (4-8 bullets, a diagram with explanation): ~2 minutes
+   - **Dense slides** (10+ bullets, complex diagrams, code walkthroughs): ~3 minutes
+   - **Section header/divider slides**: ~0.5 minutes (brief transition)
+3. **Count lab placeholder slides** — each lab intro slide represents a hands-on exercise.
+   Assume **11 minutes per lab** unless the user specifies otherwise.
+4. **Add buffer time**: title/intro (~3 minutes), closing/Q&A (~5 minutes).
+5. **Sum it up**:
+   ```
+   Total = slide presentation time + (number of labs × 11 min) + buffer
+   ```
+
+**Produce a breakdown by section:**
+
+For each major section of the deck, estimate its time contribution:
+- Section name
+- Number of content slides
+- Number of labs in this section
+- Estimated time for this section (slides + labs)
+
+**Compare to allocated time:**
+
+- If the estimate is **within 10%** of the allocation → "Fits comfortably"
+- If the estimate **exceeds the allocation by 10-25%** → "Tight — may need minor trimming"
+- If the estimate **exceeds the allocation by >25%** → "Over time — trimming required"
+
+**If over time**, suggest specific ways to trim. Reference the Slide Reduction Candidates
+analysis above, and additionally suggest:
+- Sections that could be condensed or delivered at a higher level
+- Labs that could be made optional or assigned as take-home exercises
+- Content that could be moved to an appendix/extras section after the closing slide
+
+**IMPORTANT:** Do NOT make any changes to the deck based on timing analysis. This is
+advisory only — present the estimate and trimming suggestions in the report and let the
+author decide what to cut.
+
 ---
 
 ## Phase 7: Report Generation
@@ -301,7 +407,8 @@ Compile everything from Phases 1-6 into a structured `qa-report.md` file.
 # QA Report: [Deck Title]
 **Reviewed**: [date]
 **Deck version**: [version/date from title slide if present]
-**Total slides**: [count]
+**Total slides**: [count] ([in-scope count] in scope, [post-closing count] post-closing)
+**Allocated time**: [time from user, or "Not specified"]
 **Overall quality score**: [X/10]
 
 ## Executive Summary
@@ -335,6 +442,23 @@ for delivery.]
 
 ## Content Flow Issues
 [Table: Issue | Location | Suggested Fix]
+
+## Slide Reduction Candidates
+[If the deck needs to be shortened, these slides are candidates for removal or consolidation.
+Lab intro slides and section headers are excluded from this analysis.]
+[Table: Slide # | Title | Reason | Impact if Removed | Alternative]
+
+## Timing Estimate
+**Allocated time**: [time provided by user, or "No constraint specified"]
+**Estimated delivery time**: [total estimate]
+**Verdict**: [Fits comfortably / Tight / Over time]
+
+### Breakdown by Section
+[Table: Section | Content Slides | Labs | Est. Time]
+
+### Trimming Suggestions (if over time)
+[Specific suggestions referencing slide reduction candidates, optional labs, etc.
+Note: These are recommendations only — no changes are made to the deck based on timing.]
 
 ## Year/Date Updates Applied
 [Table: Location | Old Value | New Value | Update Method (master/slide/python-pptx)]
@@ -803,6 +927,8 @@ Before telling the user you're done, verify ALL of these are true:
 - [ ] The `qa-report.md` includes a "Changes Applied" section documenting all Phase 8 modifications
 - [ ] `anticipated-qa.md` has been generated with 25-40 questions covering all major sections
 - [ ] Q&A includes questions about new slides added in Phase 8
+- [ ] Timing estimate has been calculated and included in the report
+- [ ] If estimated time exceeds allocated time, trimming suggestions have been provided (no changes made)
 
 **If any checkbox above is not checked, you are not done. Go back and complete the missing steps.**
 
