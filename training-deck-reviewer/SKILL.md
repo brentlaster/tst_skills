@@ -470,11 +470,14 @@ added after Phase 8 is complete and should include:]
 ### New Slides Created
 [Table: Slide # | Title | Positioned After | Gap Addressed | Visual Elements Used]
 
+### Visual Enhancements
+[Table: Slide # | Title | Visual Type Added | Description | Backup Slide #]
+
 ### Year/Date Updates
 [Table: Slide # | Location | Old Value | New Value]
 
 ### Backup Slides
-[Table: Backup Slide # | Original Slide # | Original Title]
+[Table: Backup Slide # | Original Slide # | Original Title | Reason (modified/enhanced)]
 
 ### Speaker Notes Added
 [Table: Slide # | Note Summary]
@@ -553,12 +556,68 @@ phase actually fixes the deck.
    - Add a speaker note: "This slide summarizes all changes made during the QA review. Remove
      before delivery if desired."
 
-6. **Verify the modified deck**:
+6. **Enhance text-heavy slides with visuals** (see Visual Enhancement of Text-Heavy Slides
+   section below for full details):
+   - Review the Phase 1 inventory for slides categorized as `content` (bullets/text) that
+     have no images, diagrams, charts, or other visual elements — just text and bullets.
+   - For each text-heavy slide, decide what kind of visual would best reinforce the content:
+     a diagram/flowchart, a comparison chart, a code example with syntax highlighting, or
+     a relevant stock/icon image.
+   - Create the enhanced version of the slide using the `add_slide.py` duplicate-and-edit
+     workflow, replacing or supplementing the text-only layout with the chosen visual.
+   - Before modifying, duplicate the original slide and append it at the end as a backup
+     (same as any other modified slide).
+   - Add a speaker note documenting the visual enhancement.
+   - Render the enhanced slide to an image and verify it looks professional and readable.
+
+7. **Verify the modified deck**:
    - Re-extract text from the modified deck and confirm changes were applied
-   - Check slide count matches expected (original + summary slide + new gap slides + backup slides)
+   - Check slide count matches expected (original + summary slide + new gap slides +
+     visually enhanced slides + backup slides)
    - Open a few modified slides to verify formatting wasn't broken
 
-7. **Save the final deck** to the outputs folder:
+8. **Renumber slide references in the QA report**:
+
+   After adding the Change Summary slide (slide 2), gap-fill slides, visually enhanced
+   slides, and backup slides, the original slide numbers in the QA report no longer match
+   actual positions in the reviewed deck. Every slide reference in `qa-report.md` must be
+   updated to reflect the **final** slide positions in `<deck>_reviewed.pptx`.
+
+   **How to build the mapping:**
+
+   1. Track every slide insertion you made during Phase 8 in order: the Change Summary
+      slide inserted at position 2, each gap-fill slide with its insertion position, and
+      all backup slides appended at the end.
+   2. Starting from slide 1, walk through the final deck and build a mapping of
+      `original_slide_number → new_slide_number`. For example, if the Change Summary was
+      inserted at position 2, every original slide shifts down by 1. If a gap-fill slide
+      was inserted at position 15 (in the new numbering), every original slide after that
+      shifts down by another 1, and so on.
+   3. New slides (Change Summary, gap-fills, visual enhancements) get their own new numbers
+      but don't have original numbers to map from — just record their final positions for
+      the report's tables.
+
+   **How to apply the mapping:**
+
+   - Scan `qa-report.md` for all slide number references. These appear in patterns like:
+     `Slide #N`, `Slide N`, `slide N`, `Slides N-M`, `(slide N)`, `after slide N`, or in
+     table cells containing just a number in a "Slide #" column.
+   - Replace each original slide number with its new position from the mapping.
+   - Update all tables in the report: Issues tables, Visual Accuracy Ratings, Animation
+     Inventory, Slide Reduction Candidates, Slide-by-Slide Quick Reference, etc.
+   - Update the "Changes Applied" section's tables to use final slide numbers.
+   - Update any slide ranges (e.g., "Slides 15-22" → "Slides 17-24").
+   - Update the Anticipated Q&A document (`anticipated-qa.md`) section headers that
+     reference slide ranges (e.g., "Section: Neural Networks (Slides 8-15)" → updated).
+   - Add a note at the top of the report: "**Note:** All slide numbers in this report
+     refer to positions in the reviewed deck (`_reviewed.pptx`), not the original."
+
+   **Tip:** Write a small Python script that takes the mapping dictionary and does
+   regex-based replacement across the report file. Replace in descending order of slide
+   number (largest first) to avoid double-replacement issues (e.g., replacing "1" inside
+   "15").
+
+9. **Save the final deck** to the outputs folder:
    ```bash
    cp <deck>_reviewed.pptx /path/to/outputs/<deck>_reviewed.pptx
    ```
@@ -571,10 +630,12 @@ phase actually fixes the deck.
 | Fix formatting | ✅ Yes | Auto-fix with backup + speaker note |
 | Update stale years | ✅ Yes | Auto-fix via slide master or direct edit |
 | Create gap-fill slides | ✅ Yes | New slides with speaker notes |
+| Enhance text-heavy slides | ✅ Yes | Add diagrams/charts/code/images with backup |
 | Create change summary slide | ✅ Yes | Inserted as slide 2, lists all changes |
+| Renumber report slide refs | ✅ Yes | Update all slide #s to final positions |
 | Technical content rewrites | ❌ No | Flagged in report for author |
 | Reorder/remove slides | ❌ No | Flagged in report for author |
-| Diagram changes | ❌ No | Flagged in report for author |
+| Existing diagram changes | ❌ No | Flagged in report for author |
 | Content restructuring | ❌ No | Flagged in report for author |
 
 ### Required output
@@ -891,6 +952,222 @@ that all content survived by checking slide count and key slide content.
 
 ---
 
+## Visual Enhancement of Text-Heavy Slides
+
+Training slides that are mostly bullets and text are harder to engage with and less memorable
+than slides with supporting visuals. This step identifies text-heavy slides and adds visual
+elements to improve their instructional quality and visual appeal.
+
+### Which slides to enhance
+
+During Phase 1 inventory, you categorized each slide. Look for slides tagged as `content`
+(bullets/text) that contain **no images, diagrams, charts, tables, or other visual elements** —
+just title text and bullet points. These are your enhancement candidates.
+
+**Skip these even if text-heavy:**
+
+- Section header/divider slides (they're intentionally minimal)
+- Lab intro slides (structural anchors, keep as-is)
+- Slides that already have visual elements (even if also text-heavy — those are fine)
+- Slides with animations that build up content progressively (the animation IS the visual)
+- Post-closing slides (out of scope)
+
+### Choosing the right visual type
+
+For each candidate slide, read its content and pick the visual type that best reinforces the
+material. The goal is to **complement the text**, not replace it — the slide should still be
+readable and the visual should add understanding, not just decoration.
+
+**Decision guide:**
+
+| Content pattern | Best visual type | Example |
+|----------------|-----------------|---------|
+| Process or sequence (steps, pipeline, workflow) | **Flowchart / process diagram** | "Steps to fine-tune a model" → horizontal flow with arrows |
+| Comparison (X vs Y, pros/cons, trade-offs) | **Comparison chart or table** | "Supervised vs Unsupervised" → side-by-side cards with key differences |
+| Hierarchy or categories (types, layers, taxonomy) | **Tree diagram or nested boxes** | "Types of neural networks" → branching tree |
+| Architecture or system (components, connections) | **Architecture diagram** | "RAG pipeline" → blocks with arrows showing data flow |
+| Numeric data (statistics, benchmarks, metrics) | **Bar/column chart or infographic** | "Model sizes over time" → bar chart |
+| Code-related (API usage, syntax, configuration) | **Styled code block** | "LangChain chain example" → syntax-highlighted code snippet |
+| Concept explanation (definition, how X works) | **Icon + callout layout** | "What is attention?" → icon with key concept callout cards |
+| List of tools/technologies | **Icon grid or card layout** | "Popular embedding models" → cards with logo/icon per tool |
+| General topic, mood, or context setting | **Stock photo** | "Introduction to Cloud Computing" → professional photo of server room or cloud imagery |
+| Real-world application or scenario | **Stock photo** | "AI in Healthcare" → medical professional using a tablet |
+
+If none of the structured visual types above fits naturally, a **well-chosen stock photo**
+can still dramatically improve a text-heavy slide. Even a single professional image placed
+alongside condensed bullets makes the slide more engaging and memorable.
+
+### How to create the visuals
+
+For diagrams, charts, code blocks, and icon layouts, create them directly in the slide XML
+as PowerPoint shapes (rectangles, rounded rectangles, arrows, connectors, text boxes, grouped
+shapes). This keeps everything editable for the instructor. For stock photos, download
+high-quality images from royalty-free sources and embed them in the slide (see below).
+
+**For diagrams, flowcharts, and architecture visuals:**
+
+1. Use PowerPoint's native shape elements: `<a:rect>`, `<a:roundRect>`, `<a:cxnSp>` (connectors),
+   `<a:grpSp>` (groups), and `<a:ln>` (lines/arrows).
+2. Apply the deck's existing color palette — extract hex colors from nearby slides' XML to
+   stay consistent. Use fills (`<a:solidFill>`) with the deck's accent colors.
+3. Add subtle styling: rounded corners (adjust `<a:prstGeom prst="roundRect"/>`), drop shadows
+   (`<a:effectLst>` with `<a:outerShdw>`), and consistent border weights.
+4. Keep text inside shapes concise (2-5 words per box). The bullets already provide detail.
+
+**For charts (bar charts, comparisons):**
+
+1. Build using grouped rectangles with proportional heights/widths rather than embedded chart
+   objects — this is more reliable across different PowerPoint versions and avoids chart
+   rendering issues.
+2. Use color-coded bars/segments with a small legend.
+3. Keep the chart simple — 3-6 data points max. The point is quick visual comprehension.
+
+**For styled code blocks:**
+
+1. Create a rounded rectangle with a dark background fill (e.g., `#1E1E1E` or `#2D2D2D`
+   like a code editor theme).
+2. Add a text frame inside with monospace font (Consolas, Courier New) in a light color
+   (white, light gray, or syntax-highlighting colors).
+3. If the deck has a code style already established on other slides, match it exactly.
+4. Keep code examples short and focused — 5-10 lines max. Show the essential pattern,
+   not a complete implementation.
+
+**For icon + callout layouts:**
+
+1. Use simple geometric shapes as icon stand-ins (circles with letters, rounded squares
+   with symbols) rather than external icon files.
+2. Pair each icon with a short text callout in a colored card/box.
+3. Arrange in a grid or horizontal row for visual balance.
+
+**For stock photos:**
+
+Stock photos work best for slides where the content is conceptual, introductory, or
+context-setting — places where a concrete image helps the audience connect with the
+topic emotionally or visually, rather than places where a precise technical diagram
+is needed.
+
+1. **Find a suitable image** — use web search to find royalty-free stock photos from
+   sources like Unsplash, Pexels, or Pixabay. Search for terms related to the slide's
+   topic (e.g., "machine learning data science", "cloud computing server", "team
+   collaboration software"). Choose images that are:
+   - **Professional and high-resolution** (at least 1920×1080 for full-slide use, or
+     800×600+ for partial layouts)
+   - **Relevant to the content** — the image should reinforce the slide's message, not
+     just be generically "tech-looking"
+   - **Not cliché** — avoid the classic "robot hand touching human hand" or "glowing
+     brain" stock photos. Look for images that feel authentic and modern.
+   - **Royalty-free / CC0 licensed** — only use images from sources that explicitly allow
+     free commercial use without attribution requirements
+
+2. **Download the image** using `curl` or `wget`:
+   ```bash
+   curl -L -o stock_photo_slideN.jpg "https://images.unsplash.com/photo-XXXX?w=1920"
+   ```
+
+3. **Embed in the slide** — add the image to the unpacked deck structure:
+   - Copy the image file into the `<deck>_unpacked/ppt/media/` directory
+   - Add a relationship entry in the slide's `.rels` file pointing to the new media file:
+     ```xml
+     <Relationship Id="rIdN" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image"
+       Target="../media/stock_photo_slideN.jpg"/>
+     ```
+   - Add a `<p:pic>` element in the slide XML referencing that relationship ID, with
+     appropriate position and size coordinates
+   - For split layouts (text + photo side by side), position the image to fill roughly
+     40-45% of the slide width on the right side
+
+4. **Style the embedded photo** for a polished look:
+   - Add rounded corners using `<a:prstGeom prst="roundRect"/>` on the picture shape
+   - Add a subtle drop shadow to lift the image off the background
+   - If the image is used at partial width, consider adding a thin border or frame that
+     matches the deck's accent color
+   - For full-bleed background images (rare — only for section-intro-style enhancements),
+     add a semi-transparent overlay rectangle so text remains readable on top
+
+5. **Add attribution in speaker notes** — even though the images are royalty-free, it's
+   good practice to note the source:
+   ```
+   [QA Review] Stock photo source: Unsplash (unsplash.com/photos/XXXX) - Free to use
+   ```
+
+**When to prefer stock photos over shape-based visuals:**
+
+- The slide topic is broad/conceptual rather than technically precise
+- A diagram would be forced or artificial for the content
+- The slide is early in a section and sets context before technical details follow
+- The slide discusses real-world applications, use cases, or industry scenarios
+- You want to break up a long run of diagram-heavy slides with visual variety
+
+**When NOT to use stock photos:**
+
+- The slide explains a specific technical process (use a diagram instead)
+- The slide compares specific options with concrete attributes (use a comparison chart)
+- The slide contains code or API details (use a styled code block)
+- You can't find an image that genuinely relates to the content — a forced stock photo
+  is worse than no image at all
+
+### Layout approach
+
+When adding a visual to a text-heavy slide, restructure the slide layout:
+
+- **Split layout**: Text/bullets on the left (~55% width), visual on the right (~45% width).
+  This works well for most enhancement types.
+- **Top-bottom layout**: Brief text at top, full-width visual below. Better for wide diagrams
+  or flowcharts.
+- **Reduced bullets + visual**: If the slide has 8+ bullets, consider condensing to the 4-5
+  most essential points and giving the freed space to the visual. The removed detail can go
+  into speaker notes.
+
+The visual should fill its allocated space fully — avoid tiny diagrams floating in a sea of
+whitespace. Aim for the visual to occupy at least 35-45% of the usable slide area.
+
+### Style requirements
+
+Every visual element should look **professional and polished**, as if created by a presentation
+designer — not hastily thrown together:
+
+- **Consistent colors**: Pull from the deck's existing palette. Don't introduce new colors.
+- **Rounded corners**: Use rounded rectangles rather than sharp-cornered boxes for a modern feel.
+- **Adequate padding**: Text inside shapes should have breathing room (at least 0.15" / ~137000 EMU
+  internal margins).
+- **Clean alignment**: Shapes should be precisely aligned (same vertical center for rows, same
+  horizontal center for columns). Use exact EMU coordinates, don't eyeball it.
+- **Readable text**: Shape text should be at least 12pt. No text smaller than 10pt anywhere.
+- **Visual hierarchy**: Use font weight (bold for headings), size variation, and color/fill
+  differences to create clear hierarchy within the visual.
+- **Drop shadows and effects**: A subtle drop shadow on cards/boxes adds depth. Keep it restrained
+  — blur radius ~40000, distance ~20000, alpha ~40%.
+
+### Change tracking for visual enhancements
+
+For each visually enhanced slide:
+
+1. **Backup the original** — duplicate and append at end of deck (same as any other modification).
+   Speaker note on backup:
+   ```
+   [BACKUP - QA Review YYYY-MM-DD] Original text-only version of slide [N]: [slide title]
+   ```
+2. **Speaker note on enhanced slide**:
+   ```
+   [QA Review - YYYY-MM-DD] VISUAL ENHANCEMENT: Added [diagram type/chart/code block/etc.]
+   to improve visual engagement. Original text-only version preserved as backup slide [M].
+   ```
+3. **Record in report** — add each enhancement to the "Changes Applied" section:
+   - Slide number, title, type of visual added, brief description
+
+### How many slides to enhance
+
+Don't try to enhance every single text-heavy slide — that would be excessive and could
+overwhelm the deck with inconsistent visuals. Aim to enhance the slides where a visual
+would have the **most instructional impact**:
+
+- Prioritize slides that explain processes, architectures, or comparisons (these benefit most)
+- Prioritize slides early in each section (sets a visual tone for the section)
+- Skip slides where the text is already well-organized and clear on its own
+- A good target is **enhancing 20-40% of text-heavy slides**, favoring quality over quantity
+
+---
+
 ## Dependencies
 
 This skill relies on tools from the **pptx skill** (sibling directory). Make sure these are
@@ -918,13 +1195,19 @@ Before telling the user you're done, verify ALL of these are true:
 - [ ] New slides use the CORRECT slide master (verified via duplicate-and-edit workflow)
 - [ ] New slides include visual design elements (cards, boxes, diagrams), not just text
 - [ ] New slides use full slide width (no large empty areas on one side)
+- [ ] Text-heavy slides have been reviewed and 20-40% enhanced with visuals (diagrams, charts, code blocks, or images)
+- [ ] Each visually enhanced slide has a backup of the original text-only version appended at end
+- [ ] Enhanced slides look professional: consistent colors, clean alignment, readable text, polished styling
 - [ ] A Change Summary slide has been inserted as slide 2 listing all modifications
 - [ ] Every modified slide has a speaker note documenting the change
 - [ ] Every modified slide has a backup copy appended at the end of the deck
 - [ ] Stale year references in footers/title slide have been updated to the current year
 - [ ] The modified deck has been verified (text re-extracted, slide count confirmed)
-- [ ] Visual QA: new slides rendered to images and inspected for correct background, layout, and readability
-- [ ] The `qa-report.md` includes a "Changes Applied" section documenting all Phase 8 modifications
+- [ ] Visual QA: new and enhanced slides rendered to images and inspected for correct background, layout, and readability
+- [ ] All slide numbers in `qa-report.md` have been renumbered to match final positions in the reviewed deck
+- [ ] All slide numbers in `anticipated-qa.md` section headers have been renumbered to match final positions
+- [ ] The report includes a note that slide numbers refer to the reviewed deck, not the original
+- [ ] The `qa-report.md` includes a "Changes Applied" section documenting all Phase 8 modifications (including visual enhancements)
 - [ ] `anticipated-qa.md` has been generated with 25-40 questions covering all major sections
 - [ ] Q&A includes questions about new slides added in Phase 8
 - [ ] Timing estimate has been calculated and included in the report
