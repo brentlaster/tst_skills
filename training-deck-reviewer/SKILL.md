@@ -5,7 +5,7 @@ description: >
   inventory, content accuracy checks (with web research), visual/diagram verification, animation
   testing via Chrome, technology gap analysis, content flow review, report generation, AND applies
   fixes directly to the deck. Produces three deliverables: qa-report.md, a _reviewed.pptx (typos
-  fixed, years updated, gap-fill slides added, change summary slide, speaker notes, backup slides),
+  fixed, years updated, broken animation references cleaned, gap-fill slides added, change summary slide, speaker notes, backup slides),
   and anticipated-qa.md with likely attendee Q&A. Trigger on: "review this deck", "QA the slides",
   "check the training materials", "audit the presentation", "verify the deck is up to date", or any
   request to review, QA, audit, or check a training deck, presentation, or course slides for
@@ -257,6 +257,11 @@ Animation XML analysis tells you *what* animations exist and *whether they're st
 but it can't tell you how they *feel* during delivery. Always recommend manual click-through for
 animated slides, even if the XML looks clean.
 
+**Broken references identified here will be auto-cleaned in Phase 8** — orphaned animation
+targets are removed from the timing XML so they no longer cause silent "dead clicks" during
+presentation. Record the full list of broken references (slide number, orphaned shape IDs,
+count) so Phase 8 can action them and the report can document what was removed.
+
 ---
 
 ## Phase 5: Technology Gap Analysis
@@ -476,6 +481,9 @@ added after Phase 8 is complete and should include:]
 ### Year/Date Updates
 [Table: Slide # | Location | Old Value | New Value]
 
+### Animation Reference Cleanup
+[Table: Slide # | Broken Refs Removed | Orphaned Shape IDs | Remaining Valid Steps]
+
 ### Backup Slides
 [Table: Backup Slide # | Original Slide # | Original Title | Reason (modified/enhanced)]
 
@@ -593,6 +601,7 @@ phase actually fixes the deck.
    - Fix typos and spelling errors found in Phase 2
    - Fix formatting inconsistencies (double spaces, punctuation)
    - Update stale copyright/version years (see Year/Date Update section below)
+   - **Clean up broken animation references** found in Phase 4 (see Animation Cleanup below)
    - For EACH fix: add a speaker note documenting the change (see Change Tracking below)
    - For EACH modified slide: duplicate the original version and append it at the end of
      the deck as a backup (see Backup Slides below)
@@ -756,6 +765,7 @@ phase actually fixes the deck.
 |--------|-------------------|-------|
 | Fix typos/spelling | ✅ Yes | Auto-fix with backup + speaker note |
 | Fix formatting | ✅ Yes | Auto-fix with backup + speaker note |
+| Clean broken animation refs | ✅ Yes | Auto-fix: remove orphaned targets + speaker note |
 | Update stale years | ✅ Yes | Auto-fix via slide master or direct edit |
 | Create gap-fill slides | ✅ Yes | New slides with speaker notes |
 | Enhance text-heavy slides | ✅ Yes | Add diagrams/charts/code/images with backup |
@@ -958,6 +968,132 @@ prs.save('<deck>_updated.pptx')
 
 ---
 
+## Animation Cleanup
+
+Phase 4 identifies animation targets that reference shapes no longer on the slide. These
+"broken references" cause invisible dead clicks during presentation — the presenter clicks,
+nothing happens, and the audience wonders if something went wrong. Cleaning them up is safe
+and non-destructive: valid animations are untouched, only orphaned targets are removed.
+
+### How it works
+
+For each slide that Phase 4 flagged with broken references:
+
+1. **Unpack the slide XML** (if not already unpacked) and locate its `<p:timing>` element.
+2. **Build a set of valid shape IDs** by scanning the slide's `<p:spTree>` for all `<p:cNvPr id="X">`
+   entries — these are the shapes that actually exist on the slide.
+3. **Walk the timing tree** and find every `<p:spTgt spid="X"/>` element. If `X` is not in the
+   valid shape set, it's an orphan.
+4. **Remove the orphaned animation node.** Walk up from the `<p:spTgt>` to its containing
+   animation element (typically a `<p:par>` inside a `<p:childTnLst>`) and remove the entire
+   `<p:par>` block. This removes the dead click step cleanly without disturbing sibling
+   animations.
+5. **If removing orphans empties a parent `<p:childTnLst>`**, remove that parent too. Continue
+   up the tree until you reach a node that still has children. If the entire `<p:timing>` element
+   ends up empty (all animations were orphaned), remove it entirely.
+
+### Implementation via python-pptx + lxml
+
+python-pptx doesn't expose animation internals, so work directly on the slide's XML via lxml.
+Here's the pattern:
+
+```python
+from pptx import Presentation
+from lxml import etree
+
+prs = Presentation('deck.pptx')
+nsmap = {
+    'p': 'http://schemas.openxmlformats.org/presentationml/2006/main',
+    'a': 'http://schemas.openxmlformats.org/drawingml/2006/main',
+}
+
+for slide in prs.slides:
+    slide_element = slide._element
+
+    # 1. Collect valid shape IDs on this slide
+    valid_ids = set()
+    for cNvPr in slide_element.findall('.//p:cSld/p:spTree//p:cNvPr', nsmap):
+        sid = cNvPr.get('id')
+        if sid:
+            valid_ids.add(sid)
+
+    # 2. Find the timing element
+    timing = slide_element.find('.//p:timing', nsmap)
+    if timing is None:
+        continue
+
+    # 3. Find orphaned animation targets
+    orphaned_pars = []
+    for spTgt in timing.findall('.//p:spTgt', nsmap):
+        spid = spTgt.get('spid')
+        if spid and spid not in valid_ids:
+            # Walk up to the containing <p:par> block
+            node = spTgt
+            while node is not None:
+                if node.tag.endswith('}par'):
+                    orphaned_pars.append(node)
+                    break
+                node = node.getparent()
+
+    # 4. Remove orphaned nodes
+    for par in orphaned_pars:
+        parent = par.getparent()
+        if parent is not None:
+            parent.remove(par)
+
+    # 5. Clean up empty parent containers
+    #    Walk up removing empty childTnLst/par elements
+    for empty_check in timing.findall('.//p:childTnLst', nsmap):
+        if len(empty_check) == 0:
+            parent = empty_check.getparent()
+            if parent is not None:
+                parent.remove(empty_check)
+
+    # If timing is now empty, remove it entirely
+    if len(timing) == 0:
+        slide_element.remove(timing)
+
+prs.save('deck_cleaned.pptx')
+```
+
+### Change tracking for animation cleanup
+
+For each slide where orphans are removed, add a speaker note:
+
+```
+[QA Review - YYYY-MM-DD HH:MM] ANIMATION CLEANUP: Removed N broken animation
+reference(s) targeting non-existent shape IDs [list IDs]. These caused dead clicks
+during presentation. Valid animations preserved.
+```
+
+Create a backup of the original slide before cleaning (same as any other auto-fix).
+
+### Report section
+
+Record all animation cleanup in the "Changes Applied" section of `qa-report.md`:
+
+```markdown
+### Animation Reference Cleanup
+| Slide # | Broken Refs Removed | Orphaned Shape IDs | Remaining Valid Steps |
+|---------|--------------------|--------------------|----------------------|
+| 14      | 15                 | 5, 8, 11, ...      | 32                   |
+```
+
+### Important notes
+
+- **Only remove orphaned targets.** Never modify animation sequences, timing, or effects
+  for shapes that exist. The goal is surgical removal of dead references, nothing more.
+- **Broken refs are common in edited decks.** When slides are reorganized, shapes deleted,
+  or content copied between slides, PowerPoint doesn't always clean up the timing XML.
+  This cleanup fixes that housekeeping gap.
+- **Always verify after cleanup.** Re-extract the slide's animation count and confirm it
+  decreased by exactly the number of orphans removed. If the count doesn't match, something
+  went wrong — investigate before saving.
+- **Backup before modify.** As with all auto-fixes, duplicate the original slide and append
+  it at the end of the deck before making changes.
+
+---
+
 ## Auto-Fix Policy
 
 The skill can fix certain things during the review, but leaves substantive changes to the author.
@@ -969,6 +1105,7 @@ The skill can fix certain things during the review, but leaves substantive chang
 - Formatting inconsistencies (punctuation, capitalization patterns)
 - Obvious punctuation errors
 - **Stale copyright/version years** — update to current year (see Year/Date Update section above)
+- **Broken animation references** — remove orphaned animation targets (see Animation Cleanup below)
 
 ### Ask first (flag in report, don't change)
 
@@ -1400,7 +1537,9 @@ historically the most frequently skipped — pay extra attention to them.
 
 ### Deck Modifications
 
-- [ ] All auto-fix changes (typos, formatting, years) have been applied to the .pptx file
+- [ ] All auto-fix changes (typos, formatting, years, broken animation refs) have been applied to the .pptx file
+- [ ] Broken animation references cleaned from all flagged slides (orphaned `spTgt` entries removed)
+- [ ] Animation cleanup verified: post-cleanup step counts match expected (original minus orphans)
 - [ ] New slides have been created for each technology gap identified in Phase 5
 - [ ] New slides use the CORRECT slide master (verified via duplicate-and-edit workflow)
 - [ ] 🔴 New slides have ALL inherited source content removed (icons, text, shapes, animations)
