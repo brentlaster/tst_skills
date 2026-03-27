@@ -100,14 +100,28 @@ New slides should:
 
 Use the pptx editing workflow:
 1. Unpack the deck: `python scripts/office/unpack.py input.pptx unpacked/`
-2. Add speaker notes to each slide's XML (in `<p:notes>` / notes slide files)
-3. If adding new slides, use `python scripts/add_slide.py` to duplicate a thematically similar slide, then edit its content
-4. Update `<p:sldIdLst>` ordering if slides were added
-5. Clean: `python scripts/clean.py unpacked/`
-6. Pack: `python scripts/office/pack.py unpacked/ output.pptx --original input.pptx`
+2. **Determine presentation order** (critical — see warning below)
+3. Add speaker notes to each slide's XML (in `<p:notes>` / notes slide files)
+4. If adding new slides, use `python scripts/add_slide.py` to duplicate a thematically similar slide, then edit its content
+5. Update `<p:sldIdLst>` ordering if slides were added
+6. Clean: `python scripts/clean.py unpacked/`
+7. Pack: `python scripts/office/pack.py unpacked/ output.pptx --original input.pptx`
+
+**CRITICAL — Slide File Numbers vs. Presentation Order:**
+Slide file names (slide1.xml, slide2.xml, ...) do NOT necessarily match the order slides appear in the presentation. For example, `slide38.xml` might be displayed at position 12. The actual display order is defined by the `<p:sldIdLst>` in `ppt/presentation.xml`, where each `<p:sldId>` entry has an `r:id` that maps to a slide file via `ppt/_rels/presentation.xml.rels`.
+
+You MUST build a presentation-order-to-file mapping before assigning notes:
+1. Read `ppt/presentation.xml` to get the ordered list of `r:id` values from `<p:sldIdLst>`
+2. Read `ppt/_rels/presentation.xml.rels` to map each `r:id` to a slide filename
+3. This gives you: position 1 → slideX.xml, position 2 → slideY.xml, etc.
+4. Assign notes based on POSITION (what the audience sees), writing them to whichever file is at that position
+
+If you skip this step and assume file numbers match display order, notes will be misaligned for any deck where slides were inserted, reordered, or deleted during authoring.
 
 **Speaker Notes XML Pattern:**
 Notes are stored in `ppt/notesSlides/notesSlideN.xml`. If a notes slide doesn't exist for a given slide, you need to create one by duplicating an existing notes slide and updating the relationship in the slide's `.rels` file.
+
+When creating a new rels file for a slide that previously had none, check whether the slide XML already references rIds for images (e.g., `<a:blip r:embed="rId2"/>`). If so, use a higher rId number for the notes relationship to avoid conflicting with those existing references. For example, if the slide uses rId1 through rId6 for images, assign the notes relationship to rId7.
 
 ### Phase 5: Update the Script (if new slides were added)
 
@@ -138,6 +152,8 @@ Write a markdown report containing:
 ### Phase 7: Verify
 
 - Run `markitdown` on the output deck to confirm notes are present
+- **Verify notes-to-slide alignment**: For each slide in the `markitdown` output, check that the slide title/content matches the notes content. Specifically spot-check slides in the middle and end of the deck, since those are most likely to be misaligned if file-order vs. presentation-order was handled incorrectly.
 - Confirm slide count matches expectations
 - Confirm script slide sections match deck slide count
 - Review notes for conciseness (trim any that exceed 8 bullets)
+- If any notes are misaligned, go back to Phase 4 and rebuild the position-to-file mapping
