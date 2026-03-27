@@ -298,12 +298,34 @@ feature stores, but speaker has not done this"]
 
 Save as `change_log.md` alongside the revised script.
 
+## Phase 6: Update Companion Slide Deck (if provided)
+
+If the user provides a .pptx deck alongside the script, check whether any of the script
+changes affect slide content. Most changes will be script-only (the spoken words change but
+the slide visuals stay the same), but watch for:
+
+1. **Fabricated text ON a slide** — statistics, quotes, or "field examples" that appear in
+   the actual slide content (not just the spoken script). These need to be edited in the XML.
+2. **New slides needed** — if a replacement strategy adds a code demo or significant new
+   content that warrants its own slide (e.g., a demo reference slide), duplicate an existing
+   slide with a compatible layout and modify it.
+3. **Slides to remove** — rare, but if a fabricated case study had its own slide and the
+   replacement is shorter, the slide may need to be consolidated.
+
+To edit the deck, use the PPTX editing skill (read `../pptx/editing.md`):
+- Unpack → edit slide XML → clean → pack
+- Use `add_slide.py` to duplicate slides for new content
+- Run visual QA on affected slides after repacking
+
+Add deck changes to the change log under a "## Deck Changes" section.
+
 ## Output Checklist
 
 When you're done, you should have produced:
 - [ ] The revised script (with `_authentic` suffix) — all SLIDE markers intact
 - [ ] A change log (`change_log.md`) documenting every replacement
 - [ ] Any code demo files (named descriptively, saved alongside the script)
+- [ ] Updated .pptx deck (with `_authentic` suffix) if a deck was provided
 
 Present these to the user with a brief summary: how many claims were flagged, what strategies
 were used, and any flagged passages where you want the speaker's input (e.g., "this one I
