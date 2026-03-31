@@ -28,218 +28,418 @@ across more slides, each displaying the key points the speaker needs to convey. 
 sees relevant, well-designed content slides. The speaker sees their talking-point cues right
 on screen.
 
-The balance to strike: new slides should look like natural, intentional content slides that
-add value for the audience — not cheat sheets or teleprompter screens. Think of it as
-"unpacking" a dense slide into a short sequence where each slide focuses on one idea, with
-the key phrases and data points visible.
+New slides should look like natural, intentional content slides that add value for the audience
+— not cheat sheets or teleprompter screens. Think of it as "unpacking" a dense slide into a
+short sequence where each slide focuses on one idea, with the key phrases and data points
+visible.
 
 ## Before You Start
 
-1. **Read the pptx skill's SKILL.md** — you'll need it for deck manipulation. Then read its
-   `editing.md` reference for the unpack/edit/pack workflow.
-2. **Collect inputs**: You need a `.pptx` deck and a `.md` script file with SLIDE delimiters.
-3. **Confirm output naming**: Create new versions with a suffix like `_expanded` — never
+1. **Collect inputs**: You need a `.pptx` deck and a `.md` script file with SLIDE delimiters.
+2. **Confirm output naming**: Create new versions with a suffix like `_expanded` — never
    overwrite the originals.
+3. **Read this skill fully before starting** — especially the Phase 3 section on deck
+   modification, which contains critical technical guidance that prevents file corruption.
 
 ## Step-by-Step Process
 
 ### Phase 1: Analyze the Deck and Script
 
-1. Extract deck content:
-   ```bash
-   python -m markitdown input.pptx
-   python scripts/thumbnail.py input.pptx
+1. **Extract deck content using python-pptx** (read-only — see Phase 3 for why):
+   ```python
+   from pptx import Presentation
+   prs = Presentation('input.pptx')
+   for i, slide in enumerate(prs.slides, 1):
+       for shape in slide.shapes:
+           if shape.has_text_frame:
+               print(f"Slide {i}: {shape.text_frame.text[:80]}")
    ```
+   If markitdown is available, you can also try `python -m markitdown input.pptx`, but be
+   aware it may fail on some decks. Always have python-pptx as a fallback for reading.
 
-2. Read the full script and parse it into sections by SLIDE delimiter. Detect the delimiter
-   format used (e.g., `## [SLIDE N — Title]`, `## **SLIDE N — Title**`, or other variants).
+2. **Read the full script** and parse it into sections by SLIDE delimiter. Detect the delimiter
+   format used. Common variants include:
+   - `## [SLIDE N — Title]`
+   - `## SLIDE N: TITLE`
+   - `## **SLIDE N — Title**`
+   The delimiter format varies between talks. Detect the actual format and use it consistently.
 
-3. For each slide section, compute:
+3. **Map presentation order to file names** — this is critical because slide file names inside
+   the .pptx (slide1.xml, slide5.xml, slide37.xml) do NOT correspond to display order. You must
+   read `ppt/presentation.xml` for the `<p:sldIdLst>` element, which defines the actual
+   presentation order, and cross-reference with `ppt/_rels/presentation.xml.rels` to get the
+   file-to-position mapping.
+
+4. For each slide section, assess:
    - **Word count** of the script section
-   - **Content density score** — how much unique information (stats, names, steps, examples)
-     is packed into the section
-   - **Memorization difficulty** — rate how hard this section is to deliver from memory:
+   - **Memorization difficulty**:
      - HIGH: Contains specific statistics, multiple case studies, technical configurations,
-       ordered lists of 4+ items, code examples, or regulatory citations
-     - MEDIUM: Contains 2-3 key points with some specifics, comparisons, or scenario
-       descriptions
-     - LOW: Contains narrative flow, transitions, audience interactions, or content that's
-       already well-represented on the existing slide
+       ordered lists of 4+ items, code examples, or citations
+     - MEDIUM: Contains 2-3 key points with some specifics, comparisons, or scenarios
+     - LOW: Narrative flow, transitions, audience interactions, or content already well
+       represented on the existing slide
 
-4. Build the **expansion plan** — a table showing:
+5. Build the **expansion plan** — a table showing:
    - Each original slide number and title
    - Script word count for that section
    - Memorization difficulty rating
-   - Recommended number of slides (1 = keep as-is, 2+ = expand)
-   - Brief description of what each new slide would show
+   - Recommended action (keep as-is, or expand with description of new slide)
 
    Expansion criteria (use judgment, not rigid rules):
    - Slides with HIGH difficulty and 150+ words of script are strong expansion candidates
    - Slides with MEDIUM difficulty and 200+ words may benefit from splitting
-   - Slides with LOW difficulty or those that are already visual/interactive generally stay as-is
+   - Slides with LOW difficulty generally stay as-is
    - Title slides, Q&A slides, section dividers, and audience interaction slides stay as-is
-   - Consider the overall talk flow — don't expand so aggressively that transitions feel choppy
+   - Don't expand so aggressively that transitions feel choppy
 
-5. **Present the expansion plan to the user** for approval before making changes. Show the
-   table and the projected new slide count. Ask if they want to adjust anything.
+6. **Present the expansion plan to the user** for approval before making changes.
 
 ### Phase 2: Design the New Slides
 
-For each expansion point, design the new slide content following these principles:
+For each expansion point, design the new slide content:
 
 **What goes on new slides:**
-- Key statistics with their context (e.g., "97% — no proper AI access controls" with source)
+- Key statistics with their context (e.g., "+14% collaboration time" with source)
 - Individual case studies or examples that were bundled into one script section
 - Steps in a process, shown one or two per slide instead of all at once
-- Comparison columns (before/after, problem/solution, anti-pattern/fix)
-- Key framework elements or decision points
-- Important quotes or principles that the speaker needs to deliver verbatim
+- Comparison columns (before/after, problem/solution)
+- Key quotes or principles the speaker needs to deliver verbatim
 - Code snippets or configuration examples mentioned in the script
 
-**Visual treatment for new slides (keep it attractive, not text-heavy):**
-- Use the same visual layouts that exist in the deck — duplicate similar slides as templates
-- Large stat callouts: big number (48-60pt) with a short explanation below
-- Icon + text rows for lists of concepts or steps
-- Two-column layouts for comparisons or before/after
-- Diagrams or flow elements when describing processes
-- Use color blocks, accent shapes, or visual hierarchy — not just plain text
-- Maximum 4-5 text elements per slide; if you need more, split again
-- Each new slide should have a clear single focus — one idea, one visual anchor
+**Visual approach — match the existing deck's style:**
+Before creating any new slides, study the existing deck's visual language. Specifically extract:
+- Background color (check `<p:bg>` in slide XML for `<a:solidFill>`)
+- Title font, size, color, and position
+- Body font, size, color
+- Accent elements (colored bars, card backgrounds, shadows)
+- Slide number format, font, position, and color
+- Any recurring layout patterns (narrative cards, stat callouts, two-column layouts)
 
-**What does NOT go on new slides:**
-- Full paragraphs from the script (this is not a teleprompter)
-- More than 30-40 words of visible text per slide
-- Content that duplicates what the previous or next slide already shows
-- Audience interaction instructions (keep those in the script only)
-- Stage directions or timing notes
+New slides must use identical fonts, colors, and positioning so they blend seamlessly into the
+deck. The audience should not be able to tell which slides are original and which are new.
+
+**Content limits:**
+- Maximum 4-5 text elements per slide; if you need more, split again
+- No more than 30-40 words of visible text per slide
+- No full paragraphs from the script — these are visual cue slides, not teleprompter screens
+- No audience interaction instructions on slides (keep those in the script only)
 
 ### Phase 3: Build the Expanded Deck
 
-Use the pptx editing workflow (unpack → modify → pack):
+**THIS IS THE MOST CRITICAL SECTION. Read it fully before writing any code.**
 
-1. **Unpack the deck**:
-   ```bash
-   python scripts/office/unpack.py input.pptx unpacked/
+#### Why python-pptx Cannot Be Used for Saving
+
+python-pptx rewrites nearly every file in the .pptx zip archive when it saves, even if you
+change nothing. In testing, a zero-change open-and-save with python-pptx modified 168 out of
+212 internal files, dropping thousands of bytes from Content_Types.xml and individual slide
+XMLs. This causes PowerPoint to show "found a problem with content" repair dialogs, delete
+content, and produce duplicate slides.
+
+**python-pptx is safe for READ-ONLY operations** (Phase 1 analysis). It must NEVER be used to
+save the final deck. All deck modification must use direct ZIP/XML manipulation.
+
+#### The Correct Approach: Direct ZIP/XML Manipulation
+
+The approach: copy the original .pptx byte-for-byte as a zip archive, surgically modify only
+the 3 XML files that need updating, and add new slide files. Every original file is preserved
+exactly. Here's the complete pattern:
+
+```python
+import zipfile
+import io
+from lxml import etree
+
+INPUT = 'original.pptx'
+OUTPUT = 'expanded.pptx'
+
+# Namespaces
+NS_RELS = 'http://schemas.openxmlformats.org/package/2006/relationships'
+NS_CT = 'http://schemas.openxmlformats.org/package/2006/content-types'
+NS_P = 'http://schemas.openxmlformats.org/presentationml/2006/main'
+NS_A = 'http://schemas.openxmlformats.org/drawingml/2006/main'
+NS_R = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships'
+
+SLIDE_CT = 'application/vnd.openxmlformats-officedocument.presentationml.slide+xml'
+SLIDE_REL_TYPE = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide'
+
+# Read original into memory
+with open(INPUT, 'rb') as f:
+    orig_data = f.read()
+orig_zip = zipfile.ZipFile(io.BytesIO(orig_data))
+
+out_buf = io.BytesIO()
+out_zip = zipfile.ZipFile(out_buf, 'w', zipfile.ZIP_DEFLATED)
+
+# Files we will modify (only these 3)
+MODIFIED_FILES = {
+    '[Content_Types].xml',
+    'ppt/presentation.xml',
+    'ppt/_rels/presentation.xml.rels',
+}
+
+# Step 1: Copy ALL original files byte-for-byte, except the 3 we modify
+for item in orig_zip.infolist():
+    if item.filename in MODIFIED_FILES:
+        continue
+    data = orig_zip.read(item.filename)
+    info = zipfile.ZipInfo(item.filename)
+    info.compress_type = zipfile.ZIP_DEFLATED
+    out_zip.writestr(info, data)
+```
+
+#### Determining IDs for New Slides
+
+Before creating slides, scan the original for the maximum existing IDs:
+
+```python
+# Find max slide file number (for naming new files)
+existing_slides = [n for n in orig_zip.namelist()
+                   if n.startswith('ppt/slides/slide') and n.endswith('.xml')]
+max_slide_num = max(int(n.split('slide')[1].split('.')[0]) for n in existing_slides)
+
+# Find max rId in presentation.xml.rels
+rels_data = orig_zip.read('ppt/_rels/presentation.xml.rels')
+rels_tree = etree.fromstring(rels_data)
+all_rels = rels_tree.findall(f'{{{NS_RELS}}}Relationship')
+max_rId = max(int(r.get('Id').replace('rId', '')) for r in all_rels)
+
+# Find max sldId in presentation.xml
+pres_data = orig_zip.read('ppt/presentation.xml')
+pres_tree = etree.fromstring(pres_data)
+sldIdLst = pres_tree.find(f'{{{NS_P}}}sldIdLst')
+max_sldId = max(int(sid.get('id')) for sid in sldIdLst)
+```
+
+Then assign new IDs sequentially: `slide{max_slide_num + 1}.xml`, `rId{max_rId + 1}`,
+sldId `{max_sldId + 1}`, etc.
+
+#### Creating New Slide XML
+
+Each new slide needs two files:
+
+1. **The slide XML** (`ppt/slides/slideNN.xml`) — built from scratch matching the deck's
+   visual theme. Structure follows this pattern:
+   ```xml
+   <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+   <p:sld xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"
+          xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+          xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main">
+     <p:cSld name="Slide Label">
+       <p:bg><p:bgPr><a:solidFill><a:srgbClr val="F5F5F5"/></a:solidFill></p:bgPr></p:bg>
+       <p:spTree>
+         <p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr>
+         <p:grpSpPr>
+           <a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/>
+                   <a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm>
+         </p:grpSpPr>
+         <!-- shapes go here -->
+       </p:spTree>
+     </p:cSld>
+     <p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr>
+   </p:sld>
    ```
 
-2. **Map presentation order to file names** (critical — see the pptx editing.md and the
-   presentation-speaker-cues skill for details on why file numbers != display order):
-   - Read `ppt/presentation.xml` for `<p:sldIdLst>` order
-   - Read `ppt/_rels/presentation.xml.rels` for file mappings
-   - Build a position-to-file lookup
-
-3. **For each expansion point**, find the most visually similar existing slide to use as a
-   template. Use `add_slide.py` to duplicate it:
-   ```bash
-   python scripts/add_slide.py unpacked/ slideN.xml
+2. **The slide rels** (`ppt/slides/_rels/slideNN.xml.rels`) — minimal, just the layout ref:
+   ```xml
+   <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+   <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+     <Relationship Id="rId1"
+       Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout"
+       Target="../slideLayouts/slideLayout1.xml"/>
+   </Relationships>
    ```
-   This prints a `<p:sldId>` entry. Insert it into `<p:sldIdLst>` at the correct position
-   (immediately after the slide it expands from, or between slides as appropriate).
 
-4. **Edit the content** of each new slide's XML:
-   - Replace placeholder/template text with the designed content
-   - Adjust font sizes, colors, and layout to match the deck theme
-   - Use the Edit tool for all XML changes (not sed or Python scripts)
+Study the existing slides to determine which slideLayout to reference. Most decks use
+`slideLayout1.xml` but check the existing slides' rels files to confirm.
 
-5. **Update content on original slides if needed** — if a slide is being split, the original
-   may need its content adjusted (e.g., removing items that now have their own slides, or
-   changing its title to reflect it's now the first in a sequence).
+#### Shape XML Patterns
 
-6. **Clean and pack**:
-   ```bash
-   python scripts/clean.py unpacked/
-   python scripts/office/pack.py unpacked/ output.pptx --original input.pptx
-   ```
+Shapes in slides follow this general pattern. Use exact positions, sizes, fonts, and colors
+extracted from the existing deck in Phase 2:
+
+**Text shape (title, body, source text):**
+```xml
+<p:sp>
+  <p:nvSpPr><p:cNvPr id="N" name="Text N"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>
+  <p:spPr>
+    <a:xfrm><a:off x="LEFT" y="TOP"/><a:ext cx="WIDTH" cy="HEIGHT"/></a:xfrm>
+    <a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:noFill/><a:ln/>
+  </p:spPr>
+  <p:txBody>
+    <a:bodyPr wrap="square" rtlCol="0" anchor="t"/>
+    <a:lstStyle/>
+    <a:p><a:pPr indent="0" marL="0"><a:buNone/></a:pPr>
+      <a:r><a:rPr lang="en-US" sz="SIZE" b="1" dirty="0">
+        <a:solidFill><a:srgbClr val="COLOR"/></a:solidFill>
+        <a:latin typeface="FONT" pitchFamily="34" charset="0"/>
+      </a:rPr><a:t>Text content here</a:t></a:r>
+    </a:p>
+  </p:txBody>
+</p:sp>
+```
+
+**Filled rectangle (accent bars, card backgrounds):**
+```xml
+<p:sp>
+  <p:nvSpPr><p:cNvPr id="N" name="Shape N"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>
+  <p:spPr>
+    <a:xfrm><a:off x="LEFT" y="TOP"/><a:ext cx="WIDTH" cy="HEIGHT"/></a:xfrm>
+    <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>
+    <a:solidFill><a:srgbClr val="COLOR"/></a:solidFill><a:ln/>
+  </p:spPr>
+</p:sp>
+```
+
+**Adding a drop shadow to a shape (for card backgrounds):**
+```xml
+<a:effectLst>
+  <a:outerShdw blurRad="76200" dist="25400" dir="8100000" algn="bl" rotWithShape="0">
+    <a:srgbClr val="000000"><a:alpha val="12000"/></a:srgbClr>
+  </a:outerShdw>
+</a:effectLst>
+```
+
+Always XML-escape text content (`&amp;`, `&lt;`, `&gt;`, `&quot;`).
+
+#### Registering New Slides in the Archive
+
+After creating the slide XML and rels content, you need to update 3 files and write the
+new files:
+
+```python
+# 1. Update [Content_Types].xml — add Override entries for each new slide
+ct_data = orig_zip.read('[Content_Types].xml')
+ct_tree = etree.fromstring(ct_data)
+for new_slide in new_slides:
+    el = etree.SubElement(ct_tree, f'{{{NS_CT}}}Override')
+    el.set('PartName', f'/ppt/slides/{new_slide["filename"]}')
+    el.set('ContentType', SLIDE_CT)
+out_zip.writestr('[Content_Types].xml',
+    etree.tostring(ct_tree, xml_declaration=True, encoding='UTF-8', standalone=True))
+
+# 2. Update ppt/_rels/presentation.xml.rels — add Relationship entries
+rels_tree = etree.fromstring(rels_data)
+for new_slide in new_slides:
+    el = etree.SubElement(rels_tree, f'{{{NS_RELS}}}Relationship')
+    el.set('Id', new_slide['rId'])
+    el.set('Type', SLIDE_REL_TYPE)
+    el.set('Target', f'slides/{new_slide["filename"]}')
+out_zip.writestr('ppt/_rels/presentation.xml.rels',
+    etree.tostring(rels_tree, xml_declaration=True, encoding='UTF-8', standalone=True))
+
+# 3. Update ppt/presentation.xml — insert sldId entries at correct positions
+#    PROCESS IN REVERSE ORDER so earlier insertions don't shift later positions
+for new_slide in sorted(new_slides, key=lambda x: x['insert_after_pos'], reverse=True):
+    new_el = etree.Element(f'{{{NS_P}}}sldId')
+    new_el.set('id', str(new_slide['sldId']))
+    new_el.set(f'{{{NS_R}}}id', new_slide['rId'])
+    entries = list(sldIdLst)
+    ref_entry = entries[new_slide['insert_after_pos'] - 1]  # 1-indexed
+    ref_idx = list(sldIdLst).index(ref_entry)
+    sldIdLst.insert(ref_idx + 1, new_el)
+out_zip.writestr('ppt/presentation.xml',
+    etree.tostring(pres_tree, xml_declaration=True, encoding='UTF-8', standalone=True))
+
+# 4. Write new slide files
+for new_slide in new_slides:
+    out_zip.writestr(f'ppt/slides/{new_slide["filename"]}', new_slide['xml'])
+    out_zip.writestr(f'ppt/slides/_rels/{new_slide["filename"]}.rels', slide_rels_xml)
+
+out_zip.close()
+with open(OUTPUT, 'wb') as f:
+    f.write(out_buf.getvalue())
+```
+
+#### Insert Position: Reverse-Order Processing
+
+When inserting multiple slides, always process insert positions in **reverse order** (highest
+position first). This prevents earlier insertions from shifting the indices of later ones.
+The `insert_after_pos` values refer to positions in the ORIGINAL deck's sldIdLst, before any
+insertions.
 
 ### Phase 4: Update the Script
 
-The script MUST be updated to match the new slide structure. For every new slide added:
+The script MUST be updated to match the new slide structure, AND the ordering must match the
+deck's presentation order exactly.
 
-1. **Detect the existing delimiter format** from the script (e.g., `## [SLIDE N — Title]`)
+1. **Detect the existing delimiter format** from the script (e.g., `## SLIDE N: TITLE`)
 
 2. **Split the original section**: Take the script text that was under the original slide and
    redistribute it across the original + new slide sections. Each section should contain only
    the script text the speaker delivers while that specific slide is showing.
 
 3. **Insert new SLIDE delimiters** for each added slide. Use letter suffixes to avoid
-   renumbering the entire script (e.g., if you split slide 14 into three slides, they become
-   SLIDE 14, SLIDE 14b, SLIDE 14c). This preserves the original numbering so the speaker's
-   existing mental map isn't disrupted.
+   renumbering the entire script (e.g., if you split slide 14, they become SLIDE 14 and
+   SLIDE 14b). This preserves the original numbering so the speaker's existing mental map
+   isn't disrupted.
 
-4. **Preserve all stage directions** — `*[PAUSE]*`, `*[GESTURE]*`, `*[TRANSITION]*`, audience
-   polls, etc. Place them in whichever new section they naturally belong to.
+4. **Critical: Match the deck's insertion order.** If a new slide is inserted AFTER the
+   original it expands from in the deck, the new script section must appear AFTER the
+   original's section in the script. If the new slide appears BEFORE another original slide
+   in the deck, the script section must appear in the same relative position. Always verify
+   the final script section order against the deck's sldIdLst order.
 
-5. **Preserve timing checkpoints** at the end of the script — update them to note that the
-   expanded deck has more slides but the same timing targets.
+5. **Preserve all stage directions** — `[PAUSE]`, `[GESTURE]`, audience polls, etc. Place
+   them in whichever section they naturally belong to.
 
-6. **Add a change summary** at the top of the new script file noting:
-   - Original slide count vs. expanded slide count
-   - Which slides were expanded and into how many
-   - That timing targets are unchanged — the same content is delivered, just across more slides
+6. **Preserve timing checkpoints** — update them to note the expanded deck has more slides
+   but the same timing targets.
 
-### Phase 5: Verify (CRITICAL — do not skip or abbreviate)
+### Phase 5: Verify (CRITICAL — do not skip)
 
 Script-to-deck alignment is the single most important quality gate. A mismatch means the
-speaker loses their place during delivery. Every step below is mandatory.
+speaker loses their place during delivery.
 
-1. **Count deck slides**:
-   ```bash
-   python -m markitdown output.pptx | grep -c '<!-- Slide'
+1. **Count deck slides** using the output file (not python-pptx, which may miscount):
+   ```python
+   import zipfile
+   from lxml import etree
+   with zipfile.ZipFile('output.pptx') as z:
+       pres = etree.fromstring(z.read('ppt/presentation.xml'))
+       NS_P = 'http://schemas.openxmlformats.org/presentationml/2006/main'
+       sldIds = pres.findall(f'.//{{{NS_P}}}sldIdLst/{{{NS_P}}}sldId')
+       print(f'Deck slides: {len(sldIds)}')
    ```
-   Record this number as DECK_COUNT.
 
 2. **Count script SLIDE delimiters**:
    ```bash
-   grep -c '^\## \[SLIDE' output_script.md
+   grep -c '^## SLIDE' output_script.md
    ```
-   (Adjust the pattern to match whatever delimiter format the script uses.)
-   Record this number as SCRIPT_COUNT.
+   (Adjust the pattern to match the actual delimiter format.)
 
-3. **Compare counts — they MUST be equal**:
-   If DECK_COUNT != SCRIPT_COUNT, do NOT proceed. Diagnose and fix:
-   - List all SLIDE headers from the script: `grep '^\## \[SLIDE' output_script.md`
-   - List all slide titles from the deck via markitdown
-   - Identify which slides are missing script sections or vice versa
-   - Add missing SLIDE sections to the script, or remove orphaned ones
-   - Re-count until DECK_COUNT == SCRIPT_COUNT exactly
+3. **Counts MUST be equal.** If not, diagnose and fix before proceeding.
 
-   Common causes of mismatch:
-   - Forgetting to add a SLIDE delimiter for a newly created slide
-   - The original script already had non-standard delimiters for some slides (e.g., 46b)
-     that the counting pattern missed — make sure your grep catches ALL delimiter variants
-   - Off-by-one errors when inserting multiple new sections
+4. **Verify ordering** — walk through both lists side by side and confirm each deck slide's
+   title matches the corresponding script section's title. This catches insertion-order
+   mismatches where counts are equal but positions are swapped.
 
-4. **Content verification**:
-   ```bash
-   python -m markitdown output.pptx
+5. **Verify content** — spot-check that new slides contain the intended content and that no
+   placeholder text remains. Read the output .pptx with python-pptx (read-only) to extract
+   text from the new slides and compare against the script.
+
+6. **Zip integrity check**:
+   ```python
+   import zipfile
+   with zipfile.ZipFile('output.pptx') as z:
+       bad = z.testzip()
+       assert bad is None, f"Corrupt zip entry: {bad}"
    ```
-   Confirm all new slides have content, no placeholder text remains, and slide order is correct.
-
-5. **Visual QA** (if subagents are available):
-   Convert to images and inspect:
-   ```bash
-   python scripts/office/soffice.py --headless --convert-to pdf output.pptx
-   pdftoppm -jpeg -r 150 output.pdf slide
-   ```
-   Check that new slides match the deck's visual theme and don't look out of place.
-
-6. **Spot-check script sections**: Read 3-4 expanded script sections and verify the text
-   makes sense split across multiple slides — transitions should be natural, not abrupt.
 
 ### Phase 6: Produce the Change Report
 
 Write a markdown report (`expansion-report.md`) containing:
 
 1. **Summary**: Original slide count, new slide count, number of slides added
-2. **Expansion Details**: For each expanded slide, show:
+2. **Expansion Details**: For each expanded slide:
    - Original slide number and title
-   - Number of new slides created
-   - What each new slide displays
+   - New slide label and title
+   - What the new slide displays
    - Why this section was expanded (the memorization challenge it addresses)
 3. **Script Changes**: Summary of how the script was restructured
-4. **Delivery Tips**: Advice on using the expanded deck — e.g., "Slides 14-14c now walk
-   through the three data classification techniques one at a time. You can simply describe
-   what's on screen rather than recalling the details from memory."
+4. **Delivery Tips**: Advice on using the expanded deck — e.g., "Slides 14 and 14b now walk
+   through the PR summary example. Slide 14 shows the code issue; 14b shows the process
+   failure. You can reference what's on screen rather than recalling the details."
 
 ## Output Files
 
@@ -251,11 +451,16 @@ All outputs go in the same directory as the inputs, with suffixes:
 ## Important Reminders
 
 - **Never overwrite originals** — always create new files with `_expanded` suffix
+- **Never use python-pptx to save** — it silently corrupts .pptx files by rewriting internal
+  XML. Use it only for read-only analysis. All deck modification must use direct ZIP/XML
+  manipulation as described in Phase 3.
 - **New slides must look intentional** — they should enhance the audience experience, not
   look like speaker notes projected on screen
 - **The script must stay in sync** — every slide in the deck needs a matching SLIDE section
-  in the script, and vice versa
+  in the script, and vice versa. Verify both count AND ordering.
 - **Letter suffixes for numbering** — use 14, 14b, 14c rather than renumbering everything,
   so the speaker's existing familiarity with slide numbers is preserved
+- **Process insertions in reverse order** — when inserting multiple slides, work from the
+  highest position to the lowest to prevent index shifting
 - **Respect the talk's timing** — adding slides doesn't add time; the same content is just
-  spread across more visual anchors. Note this in the script header.
+  spread across more visual anchors
